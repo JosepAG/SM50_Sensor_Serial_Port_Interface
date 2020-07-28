@@ -11,12 +11,14 @@ using System.IO.Ports;
 using System.Globalization;
 using System.IO;
 using System.Diagnostics;
+using System.Runtime.Hosting;
 
 namespace Port
 {
     public partial class Form1 : Form
     {
-        
+        int Cont;
+        int Activar;
         int data2;
         int data3;
         int data4;
@@ -34,9 +36,13 @@ namespace Port
         int data16;
         string combine;
         float salida;
+        float salidaAVG;
+       
+        float AVG;
         string receivedData;
         Single salidabien;
-        DateTime dataahora;
+        DateTime dataahora1;
+        String dataahora;
         String LinePort;
         int LineBaud;
         public Form1()
@@ -58,6 +64,7 @@ namespace Port
         private void Form1_Load(object sender, EventArgs e)
         {
             timer1.Enabled = false;
+ 
              int start = 1;
              if(start == 1)
              {
@@ -74,7 +81,8 @@ namespace Port
                     LineBaud = Int32.Parse(LineBaudS);
                     comboBox1.Text = LinePort;
                     comboBox2.Text = LineBaudS;
-                    data_tb.Text = "Wait 1 minute to load the data";
+                    data_tb.Text = "Wait 1 minute to load the data plot.";
+                    data_tb2.Text = "Wait to get the 30 minutes average data plot.";
                     sr.Close();
 
 
@@ -105,6 +113,9 @@ namespace Port
                  value_pb.Value = 100;
                  stop_btn.Enabled = true;
                  start_btn.Enabled = false;
+                comboBox1.Enabled = false;
+                comboBox2.Enabled = false;
+
                 start = 0;
                 
              }
@@ -146,6 +157,8 @@ namespace Port
                     value_pb.Value = 100;
                     stop_btn.Enabled = true;
                     start_btn.Enabled = false;
+                    comboBox1.Enabled = false;
+                    comboBox2.Enabled = false;
 
                 }
             }
@@ -161,6 +174,8 @@ namespace Port
             timer1.Enabled = false;
             value_pb.Value = 0;
             start_btn.Enabled = true;
+            comboBox1.Enabled = true;
+            comboBox2.Enabled = true;
             stop_btn.Enabled = false;
 
         }
@@ -218,7 +233,46 @@ namespace Port
             Int32 IntRep = Int32.Parse(combine, NumberStyles.AllowHexSpecifier);
             salida = BitConverter.ToSingle(BitConverter.GetBytes(IntRep), 0);
             salidabien = salida * 1000;
-            dataahora = DateTime.Now;
+            dataahora1 = DateTime.Now;
+            
+            dataahora = dataahora1.ToString("dd/MM/yyyy HH:mm");
+
+
+           ////////////////////AVG 30 mins/////////////////////////
+            
+            if (dataahora1.Minute == 01 || dataahora1.Minute == 31)
+            {
+                Cont = 0;
+                Activar = 1;  
+            }
+            if (Activar == 1) { 
+                 //Cont = Cont+1;
+
+                if (salida != 0)
+                {
+                    Cont = Cont + 1;
+                    salidaAVG = salidaAVG + salida;
+                } 
+                if (dataahora1.Minute == 30 || dataahora1.Minute == 00)
+                {
+                    
+                    AVG = salidaAVG / Cont;
+                    String SalidaDataAVG = AVG + "," + dataahora;
+                    File.AppendAllText("DataAvg.txt", SalidaDataAVG + Environment.NewLine);
+                    salidaAVG = 0;
+                    Cont = 0;
+                    Activar = 0;
+
+                    this.Invoke(new EventHandler(Showdata2));
+
+                }
+            }
+
+
+
+
+            /////////////////////////////////////////////////////
+            
             String SalidaData = salida + "," + dataahora;
             File.AppendAllText("Data.txt", SalidaData + Environment.NewLine);
 
@@ -228,55 +282,32 @@ namespace Port
 
         private void Showdata(object sender, EventArgs e)
         {
-
             double salida1 = Math.Round((salida * 1000),3);
             data_tb.Text = salida1.ToString() + " ppb ";
-           /* if (data_tb.Text.Length > 13)
-            {
-                int foundS1 = data_tb.Text.IndexOf(" ");
-                int foundS2 = data_tb.Text.IndexOf(",",foundS1+1);
-                if (foundS1 != foundS2 && foundS1 >= 0)
-                {
+            String dataahora2 = dataahora1.ToString("HH:mm");
 
-                    data_tb.Text = data_tb.Text.Remove(foundS1 + 1, foundS2 - foundS1);
-
-                    
-                }
-            }
-            */
-
-            dataahora = DateTime.Now;
-            Console.WriteLine(dataahora);
-            chart1.Series["Ozone"].Points.AddXY(dataahora, Math.Round(salidabien, 2));
-            if (chart1.Series["Ozone"].Points.Count > 20) { 
+            chart1.Series["Ozone"].Points.AddXY(dataahora2, Math.Round(salidabien, 2));
+            if (chart1.Series["Ozone"].Points.Count > 50) { 
             chart1.Series["Ozone"].Points.RemoveAt(0);
                 chart1.ResetAutoValues();
-            }    
+            }
         }
-
-        private void label3_Click(object sender, EventArgs e)
+        private void Showdata2(object sender, EventArgs e)
         {
+            double salida2 = Math.Round((AVG * 1000), 3);     
+            data_tb2.Text = salida2.ToString() + " ppb ";
 
-        }
-
-        private void label5_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void chart1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label2_Click(object sender, EventArgs e)
-        {
-
+            chart2.Series["Ozone"].Points.AddXY(dataahora, Math.Round((AVG * 1000), 2));
+            if (chart2.Series["Ozone"].Points.Count > 50)
+            {
+                chart2.Series["Ozone"].Points.RemoveAt(0);
+                chart2.ResetAutoValues();
+            }
         }
 
         private void timer1_Tick(object sender, EventArgs e) 
         {
-            receivedData = combine;
+            //receivedData = combine;
           
         }
 
@@ -285,6 +316,17 @@ namespace Port
             File.WriteAllText("DataForCsv.txt", File.ReadAllText("Headers.txt") + Environment.NewLine+File.ReadAllText("Data.txt"));
             Process.Start("notepad.exe", "DataForCsv.txt");
 
+        }
+
+        private void chart2_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            File.WriteAllText("DataForCsvAvg.txt", File.ReadAllText("HeadersAvg.txt") + Environment.NewLine + File.ReadAllText("DataAvg.txt"));
+            Process.Start("notepad.exe", "DataForCsvAvg.txt");
         }
     }
 }
