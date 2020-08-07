@@ -341,7 +341,7 @@ namespace Port
         {
             double salida2 = Math.Round((AVG * 1000), 3);     
             data_tb2.Text = salida2.ToString() + " ppb ";
-            String dataahora3 = dataahora1.ToString("dd/MM/yyyy HH:mm");
+            String dataahora3 = dataahora1.ToString("d/M/yy HH:mm");
 
             chart2.Series["Ozone"].Points.AddXY(dataahora3, Math.Round(salidabien2, 1));
             if (chart2.Series["Ozone"].Points.Count > 30)
